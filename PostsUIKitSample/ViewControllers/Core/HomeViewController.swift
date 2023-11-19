@@ -6,6 +6,8 @@
 //
 
 import UIKit
+import SDWebImage
+import SideMenu
 
 class HomeViewController: UIViewController {
     private let viewModel = HomeViewModel()
@@ -24,6 +26,16 @@ class HomeViewController: UIViewController {
         collectionView.isUserInteractionEnabled = true
         return collectionView
     }()
+    
+    private lazy var ppButton: UIButton = {
+        let button = UIButton()
+        button.frame = CGRect(x: 0, y: 0, width: 35, height: 35 )
+        button.layer.cornerRadius = 35 / 2
+        button.clipsToBounds = true
+        button.backgroundColor = .clear
+        button.addTarget(self, action: #selector(handleSideMenu), for: .touchUpInside)
+        return button
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -38,21 +50,19 @@ class HomeViewController: UIViewController {
         view.backgroundColor = .systemBackground
         
         let titleView = UIImageView(image: UIImage(systemName: "bird.fill"))
-        titleView.tintColor = .systemBlue
+        titleView.tintColor = .systemGreen
         navigationItem.titleView = titleView
         
-        let button = UIButton(type: .system)
-        button.frame = CGRect(x: 0, y: 0, width: 35, height: 35 )
-        button.setImage(UIImage(named: "pp")?.withRenderingMode(.alwaysOriginal), for: .normal)
-        button.layer.cornerRadius = 35 / 2
-        button.clipsToBounds = true
         
-        let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 100, height: 35)));
-        view.addSubview(button);
+        let view = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 100, height: 35)))
+        view.addSubview(ppButton)
         view.backgroundColor = .clear
-        
         let leftButton = UIBarButtonItem(customView: view)
         self.navigationItem.leftBarButtonItem = leftButton
+        
+        
+        let rightButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(openNewPostSheet))
+        self.navigationItem.rightBarButtonItem = rightButton
          
     }
     
@@ -66,22 +76,39 @@ class HomeViewController: UIViewController {
         mainCollectionView.frame = view.bounds
     }
     
+    @objc func openNewPostSheet() {
+        let newPostVC = NewPostViewController()
+        newPostVC.onPostCreated = { [weak self] in
+            self?.fetchData()
+        }
+        
+        newPostVC.modalPresentationStyle = .overFullScreen
+        present(newPostVC, animated: true)
+    }
+    
+    @objc func createDataDebug() {
+        viewModel.createPost(content: "Lets go!") { error in
+            if let error = error {
+                print("DEBUG Error creating post: \(error.localizedDescription)")
+            }
+        }
+    }
+    
     private func fetchData() {
-        viewModel.fetchPosts { result in
-            switch result {
-            case .success:
-                self.viewModel.fetchUsers { result in
-                    switch result {
-                    case .success:
-                        DispatchQueue.main.async {
-                            self.mainCollectionView.reloadData()
-                        }
-                    case .failure(let error):
-                        print("Error fetching data: \(error)")
-                    }
-                }
-            case .failure(let error):
-                print("Error fetching data: \(error)")
+        viewModel.fetchPosts { error in
+            if let error = error {
+                print("DEBUG error in fetchData: \(error)")
+            } else {
+                self.mainCollectionView.reloadData()
+            }
+        }
+    }
+    
+    private func fetchUserPp() {
+        DataManager.shared.fetchUser { url in
+            if let url = url {
+                print("DEBUG url is \(url)")
+                self.ppButton.sd_setImage(with: url, for: .normal)
             }
         }
     }
@@ -90,6 +117,22 @@ class HomeViewController: UIViewController {
         print("DEBUG like tapped")
     }
     
+    @objc func handleSideMenu() {
+        let menu = SideMenuNavigationController(rootViewController: SideMenuViewController())
+        menu.leftSide = true
+        present(menu, animated: true)
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        fetchData()
+        fetchUserPp()
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        fetchUserPp()
+    }
 }
 
 
@@ -101,7 +144,7 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: PostCollectionViewCell.reuseIdentifier, for: indexPath) as? PostCollectionViewCell else { return UICollectionViewCell() }
         
-        if let content = viewModel.postWithUsers(at: indexPath.row) {
+        if let content = viewModel.post(at: indexPath.row) {
             cell.configure(with: content, isLastItem: viewModel.numberOfItems() == indexPath.row + 1)
         }
         
@@ -109,16 +152,15 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-            if let content = viewModel.postWithUsers(at: indexPath.row) {
-                // Calculate the dynamic height based on your content
-                let userFirstNameHeight = heightForLabel(text: content.1.name, font: UIFont.systemFont(ofSize: 13, weight: .bold))
-                let titleHeight = heightForLabel(text: content.0.title, font: UIFont.systemFont(ofSize: 16, weight: .bold))
-                let bodyHeight = heightForLabel(text: content.0.body, font: UIFont.systemFont(ofSize: 14))
+            if let content = viewModel.post(at: indexPath.row) {
+                let userFirstNameHeight = heightForLabel(text: content.userInfo.username, font: UIFont.systemFont(ofSize: 13, weight: .bold))
+                let titleHeight = heightForLabel(text: content.timestamp, font: UIFont.systemFont(ofSize: 16, weight: .regular))
+//                let bodyHeight = heightForLabel(text: content.content, font: UIFont.systemFont(ofSize: 14))
                 let actionViewHeight = 40.0
                 let seperatorHeight = 4.0
 
                 // Add additional space for padding, borders, etc., if needed
-                let totalHeight = userFirstNameHeight + titleHeight + bodyHeight + actionViewHeight + seperatorHeight + /*additional space*/ 32
+                let totalHeight = 32 /*userFirstNameHeight*/ + titleHeight + /*bodyHeight +*/ actionViewHeight + seperatorHeight + 24
 
                 return CGSize(width: UIScreen.main.bounds.width, height: totalHeight)
             }

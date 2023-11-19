@@ -17,22 +17,31 @@ class PostCollectionViewCell: UICollectionViewCell {
         return label
     }()
     
-    let titleLabel: UILabel = {
+    let contentLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.textColor = .black
-        label.font = UIFont.systemFont(ofSize: 16, weight: .bold)
+        label.textColor = .label
+        label.font = UIFont.systemFont(ofSize: 16, weight: .regular)
         label.numberOfLines = 0
         return label
     }()
 
-    let bodyLabel: UILabel = {
+    let timestampLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.textColor = .darkGray
+        label.textColor = .systemGray
         label.font = UIFont.systemFont(ofSize: 14)
         label.numberOfLines = 0
         return label
+    }()
+    
+    private let profileImage: UIImageView = {
+       let imageView = UIImageView()
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.anchor(width: 32, height: 32)
+        imageView.layer.cornerRadius = 32 / 2
+        return imageView
     }()
     
     private var actionsView = PostActionsView(buttons: nil)
@@ -75,7 +84,6 @@ class PostCollectionViewCell: UICollectionViewCell {
     
     private let seperator: UIView = {
         let view = UIView()
-//        view.frame = .init(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 1)
         view.backgroundColor = .systemGray5
         return view
     }()
@@ -91,44 +99,50 @@ class PostCollectionViewCell: UICollectionViewCell {
     }
 
     private func setupUI() {
-        contentView.addSubview(titleLabel)
-        contentView.addSubview(bodyLabel)
+        contentView.addSubview(contentLabel)
+        contentView.addSubview(timestampLabel)
         contentView.addSubview(userFirstNameLabel)
+        contentView.addSubview(profileImage)
         
         actionsView = PostActionsView(buttons: [commentButton, repostButton, likeButton, shareButton])
         contentView.addSubview(actionsView)
         contentView.addSubview(seperator)
         
         NSLayoutConstraint.activate([
-            userFirstNameLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            userFirstNameLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            profileImage.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+            profileImage.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+
+            userFirstNameLabel.centerYAnchor.constraint(equalTo: profileImage.centerYAnchor),
+            userFirstNameLabel.leadingAnchor.constraint(equalTo: profileImage.trailingAnchor, constant: 12),
             
-            titleLabel.topAnchor.constraint(equalTo: userFirstNameLabel.bottomAnchor, constant: 8),
-            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            contentLabel.topAnchor.constraint(equalTo: profileImage.bottomAnchor, constant: 12),
+            contentLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            contentLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             
-            bodyLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
-            bodyLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            bodyLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            bodyLabel.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8)
+            timestampLabel.centerYAnchor.constraint(equalTo: profileImage.centerYAnchor),
+//            timestampLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            timestampLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
+//            timestampLabel.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8)
         ])
         
-        actionsView.anchor(top: bodyLabel.bottomAnchor, paddingTop: 4, height: 40)
-        seperator.anchor(top: actionsView.bottomAnchor, left: contentView.leftAnchor, right: contentView.rightAnchor, paddingTop: 6, height: 0.85)
+        actionsView.anchor(top: contentLabel.bottomAnchor, paddingTop: 4, height: 40)
+        seperator.anchor(top: actionsView.bottomAnchor, left: contentView.leftAnchor, right: contentView.rightAnchor, paddingTop: 3, height: 0.7)
         
     }
     
-    func configure(with content: (PostModel, UserModel), isLastItem: Bool = false) {
-        let nameText = NSMutableAttributedString(string: content.1.name, attributes: [.font:UIFont.systemFont(ofSize: 13, weight: .bold), .foregroundColor:UIColor.label])
-        let usernameText = NSAttributedString(string: "   @\(content.1.username)", attributes: [.font:UIFont.systemFont(ofSize: 13, weight: .regular), .foregroundColor:UIColor.gray])
-        nameText.append(usernameText)
-        userFirstNameLabel.attributedText = nameText
-        titleLabel.text = content.0.title
-        bodyLabel.text = content.0.body
+    func configure(with content: Post, isLastItem: Bool = false) {
+        let nameText = NSMutableAttributedString(string: content.userInfo.username, attributes: [.font:UIFont.systemFont(ofSize: 13, weight: .bold), .foregroundColor:UIColor.label])
         
+        profileImage.sd_setImage(with: URL(string: content.userInfo.profileImageUrl))
+        userFirstNameLabel.attributedText = nameText
+        contentLabel.text = content.content
+        timestampLabel.text = content.formattedDate
+        
+        /*
         if isLastItem {
             seperator.layer.opacity = 0
         }
+        */
     }
     
     @objc func handleLikeTapped() {

@@ -6,69 +6,42 @@
 //
 
 import Foundation
+import UIKit
 
 class HomeViewModel {
     private let networkManager = NetworkManager.shared
+    private let dataManager = DataManager.shared
 
-    // Define a closure type for the completion handler when fetching data
-    typealias PostCompletionHandler = (Result<[PostModel], APIError>) -> Void
-    typealias UserCompletionHandler = (Result<[UserModel], APIError>) -> Void
-
-    // Data source for the collection view
     public var isNetworking: Bool = false
-    private var posts: [PostModel] = []
-    private var users: [UserModel] = []
 
-    // Fetch data from the API
-    func fetchPosts(completion: @escaping PostCompletionHandler) {
-        let urlString = "https://jsonplaceholder.typicode.com/posts"
-
-        isNetworking = true
-        networkManager.fetchData(urlString: urlString) { [weak self] (result: Result<[PostModel], APIError>) in
-            switch result {
-            case .success(let data):
-                self?.posts = data
-                completion(.success(data))
-            case .failure(let error):
-                completion(.failure(error))
+    var posts: [Post] = []
+    
+    func fetchPosts(completion: @escaping (Error?) -> Void) {
+        dataManager.fetchPosts { [weak self] posts, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                completion(error)
+            } else if let posts = posts {
+                self.posts = posts.sorted(by: { $0.timestamp > $1.timestamp })
+                completion(nil)
             }
-            self?.isNetworking = false
         }
     }
     
-    func fetchUsers(completion: @escaping UserCompletionHandler) {
-        let urlString = "https://jsonplaceholder.typicode.com/users"
-
-        isNetworking = true
-        networkManager.fetchData(urlString: urlString) { [weak self] (result: Result<[UserModel], APIError>) in
-            switch result {
-            case .success(let data):
-                self?.users = data
-                completion(.success(data))
-            case .failure(let error):
-                completion(.failure(error))
+    func createPost(content: String, completion: @escaping (Error?) -> Void) {
+        dataManager.createPost(content: content) { error in
+            if let error = error {
+                completion(error)
             }
-            self?.isNetworking = false
         }
     }
 
     func numberOfItems() -> Int {
         return posts.count
     }
-    
-    func postWithUsers(at index: Int) -> (PostModel, UserModel)? {
-        guard index < posts.count else {
-            return nil
-        }
-        let post = self.posts[index]
-        guard let user = self.users.first(where: { $0.id == post.userId }) else {
-            return nil
-        }
-        let response = (post, user)
-        return response
-    }
 
-    func post(at index: Int) -> PostModel? {
+    func post(at index: Int) -> Post? {
         guard index < posts.count else {
             return nil
         }

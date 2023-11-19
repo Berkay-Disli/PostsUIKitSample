@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import FirebaseAuth
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -30,9 +31,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         navigationBarAppearance.configureWithOpaqueBackground()
         UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
         
+        let authViewModel = AuthViewModel()
+        
         guard let windowScene = (scene as? UIWindowScene) else { return }
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = MainTabBarViewController()
+        window?.tintColor = UIColor.systemGreen
+        window?.rootViewController = MainTabBarViewController(authViewModel: authViewModel)
         window?.makeKeyAndVisible()
     }
 
