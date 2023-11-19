@@ -9,9 +9,11 @@ import Foundation
 import Firebase
 
 struct Post: Codable {
+    let documentId: String
     let userInfo: UserInfoModel
     let content: String
     let timestamp: String
+    var likes: [String] = []
     
     var formattedDate: String? {
         let dateFormatter = DateFormatter()
@@ -33,6 +35,8 @@ struct Post: Codable {
     }
 
     enum CodingKeys: String, CodingKey {
+        case documentId
+        case likes
         case userInfo = "user-info"
         case content
         case timestamp

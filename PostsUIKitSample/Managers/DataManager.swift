@@ -12,6 +12,7 @@ import FirebaseStorage
 class DataManager {
     static let shared = DataManager()
     private var username: String = ""
+    public var userUID: String? = nil
     public var profileImageUrl: URL? = nil
 
     let db = Firestore.firestore()
@@ -25,6 +26,7 @@ class DataManager {
         }
         
         let uid = currentUser.uid
+        self.userUID = uid
         let reference = Storage.storage().reference().child("user-pp/\(uid).jpg")
         reference.downloadURL { url, err in
             guard err == nil else {
@@ -40,7 +42,28 @@ class DataManager {
             }
         }
     }
+    
+    func likePost(post: Post, completion: @escaping (Error?) -> Void) {
+        let postDocumentRef = db.collection("posts").document(post.documentId)
+        guard let currentUser = Auth.auth().currentUser else {
+            print("DEBUG no current user!")
+            return
+        }
+        let uid = currentUser.uid
 
+        let isLiked = post.likes.contains(uid)
+
+        if isLiked {
+            postDocumentRef.updateData(["likes": FieldValue.arrayRemove([uid])]) { error in
+                completion(error)
+            }
+        } else {
+            postDocumentRef.updateData(["likes": FieldValue.arrayUnion([uid])]) { error in
+                completion(error)
+            }
+        }
+    }
+    
     func createPost(content: String, completion: @escaping (Error?) -> Void) {
         guard let currentUser = Auth.auth().currentUser else {
             print("DEBUG no current user!")
@@ -53,27 +76,35 @@ class DataManager {
                 completion(error)
             }
             
-            if let username = snapshot?.get("username") as? String {
-                self.username = username
+            guard let username = snapshot?.get("username") as? String else {
+                print("DEBUG username not found")
+                completion(nil)
+                return
             }
             
-            let userInfo:[String:Any] = [
+            let userInfo: [String: Any] = [
                 "userId": currentUser.uid,
-                "username": self.username,
+                "username": username,
                 "profileImageUrl": self.profileImageUrl?.absoluteString ?? ""
             ]
-            let post: [String:Any] = [
+            
+            let ref = self.db.collection("posts").document()
+            let refID = ref.documentID
+            
+            let post: [String: Any] = [
+                "documentId": refID,
                 "content": content,
                 "timestamp": Date().description,
-                "user-info": userInfo
+                "user-info": userInfo,
+                "likes": []
             ]
             
-            self.db.collection("posts").addDocument(data: post) { error in
+            ref.setData(post) { error in
                 completion(error)
             }
         }
     }
-
+    
     func fetchPosts(completion: @escaping ([Post]?, Error?) -> Void) {
         db.collection("posts").getDocuments { snapshot, error in
             if let error = error {

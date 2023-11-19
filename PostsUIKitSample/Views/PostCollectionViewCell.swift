@@ -7,9 +7,22 @@
 
 import UIKit
 
+protocol PostCellDelegate: AnyObject {
+    func didTapLikeButton(for cell: PostCollectionViewCell)
+}
+
 class PostCollectionViewCell: UICollectionViewCell {
     static let reuseIdentifier = "PostCollectionViewCell"
+    private let LIKE_BUTTON_TAG = 3
+    
+    weak var delegate: PostCellDelegate? {
+        didSet {
+            print("DEBUG delegate set")
+        }
+    }
 
+    var isLiked: Bool = false
+    
     let userFirstNameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -63,13 +76,15 @@ class PostCollectionViewCell: UICollectionViewCell {
         button.tintColor = .darkGray
         return button
     }()
-    
-    let likeButton: UIButton = {
+
+    private lazy var likeButton: UIButton = {
         let button = UIButton(type: .system)
         let config = UIImage.SymbolConfiguration(pointSize: 12)
-        let image = UIImage(systemName: "heart", withConfiguration: config)
+        let image = UIImage(systemName: isLiked ? "heart.fill" : "heart", withConfiguration: config)
         button.setImage(image, for: .normal)
         button.tintColor = .darkGray
+        button.isUserInteractionEnabled = true
+        button.tag = LIKE_BUTTON_TAG
         return button
     }()
     
@@ -107,6 +122,7 @@ class PostCollectionViewCell: UICollectionViewCell {
         actionsView = PostActionsView(buttons: [commentButton, repostButton, likeButton, shareButton])
         contentView.addSubview(actionsView)
         contentView.addSubview(seperator)
+    
         
         NSLayoutConstraint.activate([
             profileImage.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
@@ -120,13 +136,13 @@ class PostCollectionViewCell: UICollectionViewCell {
             contentLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             
             timestampLabel.centerYAnchor.constraint(equalTo: profileImage.centerYAnchor),
-//            timestampLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            timestampLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
-//            timestampLabel.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8)
+            timestampLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
         ])
         
         actionsView.anchor(top: contentLabel.bottomAnchor, paddingTop: 4, height: 40)
         seperator.anchor(top: actionsView.bottomAnchor, left: contentView.leftAnchor, right: contentView.rightAnchor, paddingTop: 3, height: 0.7)
+        
+        likeButton.addTarget(self, action: #selector(handleLikeTapped), for: .touchUpInside)
         
     }
     
@@ -138,14 +154,50 @@ class PostCollectionViewCell: UICollectionViewCell {
         contentLabel.text = content.content
         timestampLabel.text = content.formattedDate
         
-        /*
-        if isLastItem {
-            seperator.layer.opacity = 0
+        actionsView.likeCountLabel.text = content.likes.count.description
+        
+        if let uid = DataManager.shared.userUID {
+            isLiked = content.likes.contains(uid)
+            let image = UIImage(systemName: isLiked ? "heart.fill" : "heart", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12))
+            likeButton.setImage(image, for: .normal)
+            likeButton.tintColor = isLiked ? .red : .darkGray
         }
-        */
+    }
+    
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+
+        guard isUserInteractionEnabled else { return nil }
+
+        guard !isHidden else { return nil }
+
+        guard alpha >= 0.01 else { return nil }
+
+        guard self.point(inside: point, with: event) else { return nil }
+
+
+        // add one of these blocks for each button in our collection view cell we want to actually work
+        if self.likeButton.point(inside: convert(point, to: likeButton), with: event) {
+            return self.likeButton
+        }
+
+        return super.hitTest(point, with: event)
     }
     
     @objc func handleLikeTapped() {
-        print("DEBUG like tapped")
+        print("DEBUG actually calling handleLikeTapped")
+        delegate?.didTapLikeButton(for: self)
+        
+        isLiked = !isLiked
+        
+        UIView.animate(withDuration: 0.3) {
+            self.updateLikeButtonAppearance()
+        }
+    }
+
+    private func updateLikeButtonAppearance() {
+        let config = UIImage.SymbolConfiguration(pointSize: 12)
+        let image = UIImage(systemName: isLiked ? "heart.fill" : "heart", withConfiguration: config)
+        likeButton.setImage(image, for: .normal)
+        likeButton.tintColor = isLiked ? .red : .darkGray
     }
 }

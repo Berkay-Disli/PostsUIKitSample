@@ -144,6 +144,8 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: PostCollectionViewCell.reuseIdentifier, for: indexPath) as? PostCollectionViewCell else { return UICollectionViewCell() }
         
+        cell.delegate = self
+        
         if let content = viewModel.post(at: indexPath.row) {
             cell.configure(with: content, isLastItem: viewModel.numberOfItems() == indexPath.row + 1)
         }
@@ -179,4 +181,26 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
             label.sizeToFit()
             return label.frame.height
         }
+}
+
+extension HomeViewController: PostCellDelegate {
+    func didTapLikeButton(for cell: PostCollectionViewCell) {
+        print("DEBUG did tap like button")
+        
+        guard let indexPath = mainCollectionView.indexPath(for: cell) else {
+            return
+        }
+        
+        let post = viewModel.post(at: indexPath.row)
+        
+        if let post = post {
+            viewModel.likePost(post: post) { error in
+                if let error = error {
+                    print("Error liking post: \(error.localizedDescription)")
+                } else {
+                    self.fetchData()
+                }
+            }
+        }
+    }
 }

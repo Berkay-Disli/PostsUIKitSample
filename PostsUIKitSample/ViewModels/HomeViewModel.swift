@@ -36,6 +36,32 @@ class HomeViewModel {
             }
         }
     }
+    
+    
+    func likePost(post: Post, completion: @escaping (Error?) -> Void) {
+        dataManager.likePost(post: post) { error in
+            completion(error)
+        }
+    }
+    
+    
+    /*
+    func likePost(post: Post, completion: @escaping (Error?) -> Void) {
+        let isLiked = post.likes.contains(currentUser.uid)
+        
+        if isLiked {
+            // User has already liked the post, remove their UID from likes
+            post.likes.removeAll { $0 == currentUser.uid }
+        } else {
+            // User has not liked the post, add their UID to likes
+            post.likes.append(currentUser.uid)
+        }
+        
+        dataManager.likePost(post: post) { error in
+            completion(error)
+        }
+    }
+    */
 
     func numberOfItems() -> Int {
         return posts.count
